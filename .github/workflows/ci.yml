@@ -57,8 +57,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=6775676734bb8fea69daf73871bcfab7d76de1ff
-
+        run: mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=NikitaKostyukovich_FintechPlatform-UserService -Dsonar.organization=nikitakostyukovich
   docker:
     needs: build-and-test
     runs-on: ubuntu-latest
