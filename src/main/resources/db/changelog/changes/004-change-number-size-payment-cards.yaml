@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-change-number-size-payment-cards.yaml
+      author: nikita_kostyukovich
+      changes:
+        - modifyDataType:
+            tableName: payment_cards
+            columnName: number
+            newDataType: varchar(16)
