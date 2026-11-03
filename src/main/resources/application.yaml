@@ -14,7 +14,7 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        default_batch_fetch_size: 20
+        default_batch_fetch_size: 100
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   cache:

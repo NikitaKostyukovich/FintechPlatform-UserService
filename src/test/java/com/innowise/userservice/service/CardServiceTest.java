@@ -15,12 +15,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CardServiceTest {
@@ -31,6 +39,8 @@ class CardServiceTest {
     private UserRepository userRepository;
     @Mock
     private CardMapper cardMapper;
+    @Mock
+    private CacheManager cacheManager;
     @InjectMocks
     private CardService cardService;
 
@@ -118,7 +128,12 @@ class CardServiceTest {
 
     @Test
     void updateCard_found_updatesEntityAndSaves() {
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(1L);
+
         Card card = new Card();
+        card.setUser(user);
+
         CardRequestDTO dto = mock(CardRequestDTO.class);
         CardResponseDTO response = mock(CardResponseDTO.class);
 
@@ -143,19 +158,25 @@ class CardServiceTest {
     }
 
     @Test
-    void deleteCard_exists_deactivatesCard() {
-        when(cardRepository.existsById(1L)).thenReturn(true);
+    void deleteCard_exists_deletesCard() {
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(1L);
+
+        Card card = new Card();
+        card.setUser(user);
+
+        when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
 
         cardService.deleteCard(1L);
 
-        verify(cardRepository).activateOrDeactivateCard(false, 1L);
+        verify(cardRepository).deleteById(1L);
     }
 
     @Test
     void deleteCard_notFound_throws() {
-        when(cardRepository.existsById(1L)).thenReturn(false);
+        when(cardRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(CardNotFoundException.class, () -> cardService.deleteCard(1L));
-        verify(cardRepository, never()).activateOrDeactivateCard(anyBoolean(), any());
+        verify(cardRepository, never()).deleteById(any());
     }
 }

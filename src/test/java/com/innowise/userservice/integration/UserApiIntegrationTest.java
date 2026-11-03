@@ -3,7 +3,11 @@ package com.innowise.userservice.integration;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -181,5 +185,69 @@ class UserApiIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isNoContent());
 
         org.junit.jupiter.api.Assertions.assertEquals(0, cardRepository.count());
+    }
+    @Test
+    void addCard_evictsUserCache_andNewCardIsReturned() throws Exception {
+        long userId = createUser("Ivan", "Petrov", "ivan@test.com");
+
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(0));
+
+        mockMvc.perform(post("/api/users/{userId}/cards", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cardJson(cardNumber(1))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(1))
+                .andExpect(jsonPath("$.cards[0].number").value(cardNumber(1)));
+    }
+
+    @Test
+    void updateCard_evictsUserCache_andUpdatedCardIsReturned() throws Exception {
+        long userId = createUser("Ivan", "Petrov", "ivan@test.com");
+        long cardId = createCard(userId, cardNumber(1));
+
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards[0].number").value(cardNumber(1)));
+
+        mockMvc.perform(put("/api/cards/{id}", cardId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cardJson(cardNumber(2))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(1))
+                .andExpect(jsonPath("$.cards[0].number").value(cardNumber(2)));
+    }
+
+    @Test
+    void deleteCard_evictsUserCache_andCardIsRemoved() throws Exception {
+        long userId = createUser("Ivan", "Petrov", "ivan@test.com");
+        long cardId = createCard(userId, cardNumber(1));
+
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(1));
+
+        mockMvc.perform(delete("/api/cards/{id}", cardId))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(0));
+    }
+    private String cardJson(String number) {
+        return String.format("""
+            {
+                "number": "%s",
+                "holder": "IVAN PETROV",
+                "expirationDate": "2029-11-04"
+            }
+            """, number);
     }
 }

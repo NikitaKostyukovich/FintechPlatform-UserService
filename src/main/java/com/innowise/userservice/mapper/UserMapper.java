@@ -4,7 +4,6 @@ import com.innowise.userservice.dto.user.UserRequestDTO;
 import com.innowise.userservice.dto.user.UserResponseDTO;
 import com.innowise.userservice.entity.User;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring", uses = CardMapper.class)

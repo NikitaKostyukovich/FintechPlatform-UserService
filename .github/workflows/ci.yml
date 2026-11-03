@@ -6,37 +6,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: usersdb
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: babyface
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DB_URL: jdbc:postgresql://localhost:5432/usersdb
-      DB_USERNAME: postgres
-      DB_PASSWORD: babyface
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +27,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=NikitaKostyukovich_FintechPlatform-UserService -Dsonar.organization=nikitakostyukovich
+
   docker:
     needs: build-and-test
     runs-on: ubuntu-latest

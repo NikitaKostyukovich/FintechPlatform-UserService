@@ -45,7 +45,7 @@ public class CardService {
 
         long activeCardsCount = cardRepository.countByUserIdAndActiveTrue(userId);
         if (activeCardsCount >= 5) {
-            log.warn("User with id: {} has reached the card limit", userId); // Можно добавить warn, если логика прерывается
+            log.warn("User with id: {} has reached the card limit", userId);
             throw new CardLimitExceededException("User has reached the maximum limit of 5 active cards.");
         }
 
@@ -90,8 +90,9 @@ public class CardService {
         cardMapper.updateEntityFromDTO(dto, existingCard);
 
         Card updatedCard = cardRepository.save(existingCard);
-        evictUserCache(updatedCard.getUser().getId());
-        log.info("Successfully updated card with id: {}", cardId);
+        if (existingCard.getUser() != null) {
+            evictUserCache(existingCard.getUser().getId());
+        }        log.info("Successfully updated card with id: {}", cardId);
         return cardMapper.toDTO(updatedCard);
     }
 
@@ -102,7 +103,9 @@ public class CardService {
 
         cardRepository.deleteById(cardId);
 
-        evictUserCache(existingCard.getUser().getId());
+        if (existingCard.getUser() != null) {
+            evictUserCache(existingCard.getUser().getId());
+        }
         log.info("Successfully deactivated card with id: {}", cardId);
     }
     private void evictUserCache(Long userId){

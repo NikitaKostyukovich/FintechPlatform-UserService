@@ -163,15 +163,11 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
         long cardId = createCard(userId, cardNumber(1));
 
-        mockMvc.perform(get("/api/cards/{id}", cardId))
-                .andExpect(jsonPath("$.active").value(true));
-
         mockMvc.perform(delete("/api/cards/{id}", cardId))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/cards/{id}", cardId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.active").value(false));
+                .andExpect(status().isNotFound());
     }
 
     @Test
