@@ -11,6 +11,9 @@ import com.innowise.userservice.mapper.CardMapper;
 import com.innowise.userservice.repository.CardRepository;
 import com.innowise.userservice.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,13 +27,15 @@ public class CardService {
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
     private final CardMapper cardMapper;
+    private final CacheManager cacheManager;
 
-    public CardService(CardRepository cardRepository, UserRepository userRepository, CardMapper cardMapper) {
+    public CardService(CardRepository cardRepository, UserRepository userRepository, CardMapper cardMapper, CacheManager cacheManager) {
         this.cardRepository = cardRepository;
         this.userRepository = userRepository;
         this.cardMapper = cardMapper;
+        this.cacheManager = cacheManager;
     }
-
+    @CacheEvict(value = "users", key = "#userId")
     @Transactional
     public CardResponseDTO addCardToUser(Long userId, CardRequestDTO dto) {
         log.info("Attempting to add new card for user with id: {}", userId);
@@ -75,7 +80,6 @@ public class CardService {
                 .orElseThrow(() -> new CardNotFoundException("Card not found with id: " + cardId));
         return cardMapper.toDTO(card);
     }
-
     @Transactional
     public CardResponseDTO updateCard(Long cardId, CardRequestDTO dto) {
         log.info("Attempting to update card with id: {}", cardId);
@@ -86,20 +90,25 @@ public class CardService {
         cardMapper.updateEntityFromDTO(dto, existingCard);
 
         Card updatedCard = cardRepository.save(existingCard);
+        evictUserCache(updatedCard.getUser().getId());
         log.info("Successfully updated card with id: {}", cardId);
-
         return cardMapper.toDTO(updatedCard);
     }
 
     @Transactional
     public void deleteCard(Long cardId) {
         log.info("Attempting to deactivate card with id: {}", cardId);
+        Card existingCard = cardRepository.findById(cardId).orElseThrow(()->new CardNotFoundException("Card not found with id: " + cardId));
 
-        if (!cardRepository.existsById(cardId)) {
-            throw new CardNotFoundException("Card not found with id: " + cardId);
-        }
-        cardRepository.activateOrDeactivateCard(false, cardId);
+        cardRepository.deleteById(cardId);
 
+        evictUserCache(existingCard.getUser().getId());
         log.info("Successfully deactivated card with id: {}", cardId);
+    }
+    private void evictUserCache(Long userId){
+        Cache userCache = cacheManager.getCache("users");
+        if(userCache != null){
+            userCache.evict(userId);
+        }
     }
 }
