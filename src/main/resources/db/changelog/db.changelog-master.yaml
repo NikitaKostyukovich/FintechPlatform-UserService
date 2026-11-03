@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/changes/003-add-users-name-surname-index.yaml
   - include:
       file: db/changelog/changes/004-change-number-size-payment-cards.yaml
+  - include:
+      file: db/changelog/changes/005-add-users-name-surname-lower-index.yaml

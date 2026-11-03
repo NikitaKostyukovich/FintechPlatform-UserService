@@ -4,6 +4,6 @@ databaseChangeLog:
       author: nikita_kostyukovich
       changes:
         - sql:
-            sql: DROP INDEX IF EXISTS idx_user_name_surname;
+            sql: DROP INDEX IF EXISTS idx_users_name_surname;
         - sql:
-            sql: CREATE INDEX idx_user_name_surname_lower ON users (LOWER(name), LOWER(surname));
+            sql: CREATE INDEX idx_user_name_surname_lower ON users (LOWER(surname), LOWER(name));
