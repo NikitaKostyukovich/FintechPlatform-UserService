@@ -15,7 +15,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,6 +45,27 @@ class CardServiceTest {
     private CacheManager cacheManager;
     @InjectMocks
     private CardService cardService;
+
+    private Jwt mockJwt(Long userId, String role) {
+        Jwt jwt = mock(Jwt.class);
+        when(jwt.getClaimAsString("role")).thenReturn(role);
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            when(jwt.getClaim("user_id")).thenReturn(userId);
+        }
+        return jwt;
+    }
+
+    private User createUser(Long id) {
+        User user = new User();
+        user.setName("Test");
+        try {
+            var field = User.class.getDeclaredField("id");
+            field.setAccessible(true);
+            field.set(user, id);
+        } catch (Exception ignored) {}
+        return user;
+    }
+
 
     @Test
     void addCardToUser_underLimit_savesCardWithOwner() {
@@ -85,6 +108,7 @@ class CardServiceTest {
         verify(cardRepository, never()).save(any());
     }
 
+
     @Test
     void getCardsByUserId_userExists_returnsMappedList() {
         Card card = new Card();
@@ -108,40 +132,65 @@ class CardServiceTest {
         verify(cardRepository, never()).findByUserId(any());
     }
 
-    @Test
-    void getCardById_found_returnsDto() {
-        Card card = new Card();
-        CardResponseDTO response = mock(CardResponseDTO.class);
 
-        when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
+    @Test
+    void getCardById_asAdmin_returnsDto() {
+        Card card = new Card();
+        card.setUser(createUser(2L));
+        CardResponseDTO response = mock(CardResponseDTO.class);
+        Jwt adminJwt = mockJwt(1L, "ADMIN");
+
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
         when(cardMapper.toDTO(card)).thenReturn(response);
 
-        assertSame(response, cardService.getCardById(1L));
+        assertSame(response, cardService.getCardById(10L, adminJwt));
+    }
+
+    @Test
+    void getCardById_asOwner_returnsDto() {
+        Card card = new Card();
+        card.setUser(createUser(1L));
+        CardResponseDTO response = mock(CardResponseDTO.class);
+        Jwt userJwt = mockJwt(1L, "USER");
+
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+        when(cardMapper.toDTO(card)).thenReturn(response);
+
+        assertSame(response, cardService.getCardById(10L, userJwt));
+    }
+
+    @Test
+    void getCardById_asNotOwner_throwsAccessDenied() {
+        Card card = new Card();
+        card.setUser(createUser(1L));
+        Jwt attackerJwt = mockJwt(2L, "USER");
+
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+
+        assertThrows(AccessDeniedException.class, () -> cardService.getCardById(10L, attackerJwt));
     }
 
     @Test
     void getCardById_notFound_throws() {
-        when(cardRepository.findById(1L)).thenReturn(Optional.empty());
+        Jwt jwt = mock(Jwt.class);
+        when(cardRepository.findById(10L)).thenReturn(Optional.empty());
 
-        assertThrows(CardNotFoundException.class, () -> cardService.getCardById(1L));
+        assertThrows(CardNotFoundException.class, () -> cardService.getCardById(10L, jwt));
     }
 
     @Test
-    void updateCard_found_updatesEntityAndSaves() {
-        User user = mock(User.class);
-        when(user.getId()).thenReturn(1L);
-
+    void updateCard_asOwner_updatesAndSaves() {
         Card card = new Card();
-        card.setUser(user);
-
+        card.setUser(createUser(1L));
         CardRequestDTO dto = mock(CardRequestDTO.class);
         CardResponseDTO response = mock(CardResponseDTO.class);
+        Jwt ownerJwt = mockJwt(1L, "USER");
 
-        when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
         when(cardRepository.save(card)).thenReturn(card);
         when(cardMapper.toDTO(card)).thenReturn(response);
 
-        CardResponseDTO result = cardService.updateCard(1L, dto);
+        CardResponseDTO result = cardService.updateCard(10L, dto, ownerJwt);
 
         assertSame(response, result);
         verify(cardMapper).updateEntityFromDTO(dto, card);
@@ -149,34 +198,85 @@ class CardServiceTest {
     }
 
     @Test
-    void updateCard_notFound_throwsAndDoesNotSave() {
+    void updateCard_asNotOwner_throwsAccessDenied() {
+        Card card = new Card();
+        card.setUser(createUser(1L));
         CardRequestDTO dto = mock(CardRequestDTO.class);
-        when(cardRepository.findById(1L)).thenReturn(Optional.empty());
+        Jwt attackerJwt = mockJwt(2L, "USER");
 
-        assertThrows(CardNotFoundException.class, () -> cardService.updateCard(1L, dto));
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+
+        assertThrows(AccessDeniedException.class, () -> cardService.updateCard(10L, dto, attackerJwt));
         verify(cardRepository, never()).save(any());
     }
 
+
     @Test
-    void deleteCard_exists_deletesCard() {
-        User user = mock(User.class);
-        when(user.getId()).thenReturn(1L);
-
+    void deleteCard_asAdmin_deletesSuccessfully() {
         Card card = new Card();
-        card.setUser(user);
+        card.setUser(createUser(1L));
+        Jwt adminJwt = mockJwt(999L, "ADMIN");
 
-        when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
 
-        cardService.deleteCard(1L);
+        cardService.deleteCard(10L, adminJwt);
 
-        verify(cardRepository).deleteById(1L);
+        verify(cardRepository).deleteById(10L);
     }
 
     @Test
-    void deleteCard_notFound_throws() {
-        when(cardRepository.findById(1L)).thenReturn(Optional.empty());
+    void deleteCard_asNotOwner_throwsAccessDenied() {
+        Card card = new Card();
+        card.setUser(createUser(1L));
+        Jwt attackerJwt = mockJwt(2L, "USER");
 
-        assertThrows(CardNotFoundException.class, () -> cardService.deleteCard(1L));
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+
+        assertThrows(AccessDeniedException.class, () -> cardService.deleteCard(10L, attackerJwt));
         verify(cardRepository, never()).deleteById(any());
+    }
+    @Test
+    void updateCard_asOwner_evictsUserCache() {
+        // Arrange
+        Long userId = 1L;
+        Card card = new Card();
+        card.setUser(createUser(userId));
+        CardRequestDTO dto = mock(CardRequestDTO.class);
+        Jwt ownerJwt = mockJwt(userId, "USER");
+        Cache mockCache = mock(Cache.class);
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+        when(cardRepository.save(card)).thenReturn(card);
+        when(cardMapper.toDTO(card)).thenReturn(mock(CardResponseDTO.class));
+        when(cacheManager.getCache("users")).thenReturn(mockCache);
+        cardService.updateCard(10L, dto, ownerJwt);
+        verify(cacheManager).getCache("users");
+        verify(mockCache).evict(userId);
+    }
+    @Test
+    void deleteCard_asAdmin_evictsUserCache() {
+        Long userId = 42L;
+        Card card = new Card();
+        card.setUser(createUser(userId));
+        Jwt adminJwt = mockJwt(999L, "ADMIN");
+        Cache mockCache = mock(Cache.class);
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+        when(cacheManager.getCache("users")).thenReturn(mockCache);
+        cardService.deleteCard(10L, adminJwt);
+        verify(cacheManager).getCache("users");
+        verify(mockCache).evict(userId);
+    }
+    @Test
+    void updateCard_whenCacheManagerReturnsNullCache_doesNotThrowException() {
+        Long userId = 1L;
+        Card card = new Card();
+        card.setUser(createUser(userId));
+        CardRequestDTO dto = mock(CardRequestDTO.class);
+        Jwt ownerJwt = mockJwt(userId, "USER");
+        when(cardRepository.findById(10L)).thenReturn(Optional.of(card));
+        when(cardRepository.save(card)).thenReturn(card);
+        when(cardMapper.toDTO(card)).thenReturn(mock(CardResponseDTO.class));
+        when(cacheManager.getCache("users")).thenReturn(null);
+        cardService.updateCard(10L, dto, ownerJwt);
+        verify(cacheManager).getCache("users");
     }
 }

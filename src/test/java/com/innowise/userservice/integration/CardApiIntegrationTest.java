@@ -17,6 +17,7 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
 
         mockMvc.perform(post("/api/users/{userId}/cards", userId)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "IVAN PETROV")))
                 .andExpect(status().isCreated())
@@ -29,6 +30,7 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
     @Test
     void addCard_unknownUser_returns404() throws Exception {
         mockMvc.perform(post("/api/users/{userId}/cards", 999999)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "IVAN PETROV")))
                 .andExpect(status().isNotFound())
@@ -40,6 +42,7 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
 
         mockMvc.perform(post("/api/users/{userId}/cards", userId)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "")))
                 .andExpect(status().isBadRequest());
@@ -53,6 +56,7 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         }
 
         mockMvc.perform(post("/api/users/{userId}/cards", userId)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(5), "IVAN PETROV")))
                 .andExpect(status().isConflict())
@@ -68,7 +72,8 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
             createCard(userId, cardNumber(i));
         }
 
-        mockMvc.perform(delete("/api/cards/{id}", firstCardId))
+        mockMvc.perform(delete("/api/cards/{id}", firstCardId)
+                        .with(adminJwt()))
                 .andExpect(status().isNoContent());
 
         createCard(userId, cardNumber(5));
@@ -90,7 +95,8 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
         long cardId = createCard(userId, cardNumber(1));
 
-        mockMvc.perform(get("/api/cards/{id}", cardId))
+        mockMvc.perform(get("/api/cards/{id}", cardId)
+                        .with(adminJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(cardId))
                 .andExpect(jsonPath("$.number").value(cardNumber(1)));
@@ -98,7 +104,8 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void getCardById_unknown_returns404() throws Exception {
-        mockMvc.perform(get("/api/cards/{id}", 999999))
+        mockMvc.perform(get("/api/cards/{id}", 999999)
+                        .with(adminJwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -111,14 +118,16 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         createCard(first, cardNumber(2));
         createCard(second, cardNumber(3));
 
-        mockMvc.perform(get("/api/users/{userId}/cards", first))
+        mockMvc.perform(get("/api/users/{userId}/cards", first)
+                        .with(adminJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
     void getCardsByUser_unknownUser_returns404() throws Exception {
-        mockMvc.perform(get("/api/users/{userId}/cards", 999999))
+        mockMvc.perform(get("/api/users/{userId}/cards", 999999)
+                        .with(adminJwt()))
                 .andExpect(status().isNotFound());
     }
 
@@ -126,12 +135,14 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
     void getCardsByUser_listIsNotStaleAfterAddingCard() throws Exception {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
 
-        mockMvc.perform(get("/api/users/{userId}/cards", userId))
+        mockMvc.perform(get("/api/users/{userId}/cards", userId)
+                        .with(adminJwt()))
                 .andExpect(jsonPath("$.length()").value(0));
 
         createCard(userId, cardNumber(1));
 
-        mockMvc.perform(get("/api/users/{userId}/cards", userId))
+        mockMvc.perform(get("/api/users/{userId}/cards", userId)
+                        .with(adminJwt()))
                 .andExpect(jsonPath("$.length()").value(1));
     }
 
@@ -141,18 +152,21 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         long cardId = createCard(userId, cardNumber(1));
 
         mockMvc.perform(put("/api/cards/{id}", cardId)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "PETR IVANOV")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.holder").value("PETR IVANOV"));
 
-        mockMvc.perform(get("/api/cards/{id}", cardId))
+        mockMvc.perform(get("/api/cards/{id}", cardId)
+                        .with(adminJwt()))
                 .andExpect(jsonPath("$.holder").value("PETR IVANOV"));
     }
 
     @Test
     void updateCard_unknown_returns404() throws Exception {
         mockMvc.perform(put("/api/cards/{id}", 999999)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "PETR IVANOV")))
                 .andExpect(status().isNotFound());
@@ -163,16 +177,49 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
         long cardId = createCard(userId, cardNumber(1));
 
-        mockMvc.perform(delete("/api/cards/{id}", cardId))
+        mockMvc.perform(delete("/api/cards/{id}", cardId)
+                        .with(adminJwt()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/cards/{id}", cardId))
+        mockMvc.perform(get("/api/cards/{id}", cardId)
+                        .with(adminJwt()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void deleteCard_unknown_returns404() throws Exception {
-        mockMvc.perform(delete("/api/cards/{id}", 999999))
+        mockMvc.perform(delete("/api/cards/{id}", 999999)
+                        .with(adminJwt()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void addCard_asUser_createsCard() throws Exception {
+        long userId = createUser("Ivan", "Petrov", "ivan@test.com");
+
+        mockMvc.perform(post("/api/cards")
+                        .with(userJwt(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cardJson(cardNumber(1), "IVAN PETROV")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists());
+    }
+
+    @Test
+    void getCards_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/cards"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void addCardByAdminPath_asRegularUser_returns403Forbidden() throws Exception {
+        long userId = createUser("Ivan", "Petrov", "ivan@test.com");
+
+        // Обычный юзер пытается вызвать админский эндпоинт POST /api/users/{userId}/cards
+        mockMvc.perform(post("/api/users/{userId}/cards", userId)
+                        .with(userJwt(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cardJson(cardNumber(1), "IVAN PETROV")))
+                .andExpect(status().isForbidden());
     }
 }

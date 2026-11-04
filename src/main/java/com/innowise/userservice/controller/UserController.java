@@ -4,11 +4,13 @@ import com.innowise.userservice.dto.user.UserRequestDTO;
 import com.innowise.userservice.dto.user.UserResponseDTO;
 import com.innowise.userservice.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -30,12 +32,21 @@ public class UserController {
         this.userService = userService;
     }
 
+    @GetMapping("/info")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<UserResponseDTO> getUserProfile(@AuthenticationPrincipal Jwt jwt) {
+        Long currentUserId = ((Number) jwt.getClaim("user_id")).longValue();
+        return ResponseEntity.ok(userService.getUserById(currentUserId));
+    }
+
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id){
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<UserResponseDTO>> getFilteredUsers(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String surname,
@@ -50,21 +61,36 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
+    @PutMapping
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<UserResponseDTO> updateUser(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid UserRequestDTO dto
+    ) {
+        Long currentUserId = ((Number) jwt.getClaim("user_id")).longValue();
+        return ResponseEntity.ok(userService.updateUser(currentUserId, dto));
+    }
+
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> updateUser(@PathVariable Long id, @RequestBody @Valid UserRequestDTO dto){
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> updateUserById(
+            @PathVariable Long id,
+            @RequestBody @Valid UserRequestDTO dto
+    ) {
         return ResponseEntity.ok(userService.updateUser(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> updateStatus(@PathVariable Long id, @RequestParam boolean status){
         userService.updateUserStatus(id, status);
         return ResponseEntity.ok().build();
     }
-
 }

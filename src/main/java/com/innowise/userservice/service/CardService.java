@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class CardService {
         this.cardMapper = cardMapper;
         this.cacheManager = cacheManager;
     }
+
     @CacheEvict(value = "users", key = "#userId")
     @Transactional
     public CardResponseDTO addCardToUser(Long userId, CardRequestDTO dto) {
@@ -73,44 +76,70 @@ public class CardService {
                 .collect(Collectors.toList());
     }
 
-    public CardResponseDTO getCardById(Long cardId) {
+    public CardResponseDTO getCardById(Long cardId, Jwt jwt) {
         log.info("Fetching card with id: {}", cardId);
 
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new CardNotFoundException("Card not found with id: " + cardId));
+
+        validateCardOwnership(card, jwt);
+
         return cardMapper.toDTO(card);
     }
+
     @Transactional
-    public CardResponseDTO updateCard(Long cardId, CardRequestDTO dto) {
+    public CardResponseDTO updateCard(Long cardId, CardRequestDTO dto, Jwt jwt) {
         log.info("Attempting to update card with id: {}", cardId);
 
         Card existingCard = cardRepository.findById(cardId)
                 .orElseThrow(() -> new CardNotFoundException("Card not found with id: " + cardId));
+
+        validateCardOwnership(existingCard, jwt);
 
         cardMapper.updateEntityFromDTO(dto, existingCard);
 
         Card updatedCard = cardRepository.save(existingCard);
         if (existingCard.getUser() != null) {
             evictUserCache(existingCard.getUser().getId());
-        }        log.info("Successfully updated card with id: {}", cardId);
+        }
+        log.info("Successfully updated card with id: {}", cardId);
         return cardMapper.toDTO(updatedCard);
     }
 
     @Transactional
-    public void deleteCard(Long cardId) {
-        log.info("Attempting to deactivate card with id: {}", cardId);
-        Card existingCard = cardRepository.findById(cardId).orElseThrow(()->new CardNotFoundException("Card not found with id: " + cardId));
+    public void deleteCard(Long cardId, Jwt jwt) {
+        log.info("Attempting to delete card with id: {}", cardId);
+        Card existingCard = cardRepository.findById(cardId)
+                .orElseThrow(() -> new CardNotFoundException("Card not found with id: " + cardId));
+
+        validateCardOwnership(existingCard, jwt);
 
         cardRepository.deleteById(cardId);
 
         if (existingCard.getUser() != null) {
             evictUserCache(existingCard.getUser().getId());
         }
-        log.info("Successfully deactivated card with id: {}", cardId);
+        log.info("Successfully deleted card with id: {}", cardId);
     }
-    private void evictUserCache(Long userId){
+
+    private void validateCardOwnership(Card card, Jwt jwt) {
+        String role = jwt.getClaimAsString("role");
+
+        if ("ADMIN".equalsIgnoreCase(role)) {
+            return;
+        }
+
+        Long currentUserId = ((Number) jwt.getClaim("user_id")).longValue();
+        if (card.getUser() == null || !card.getUser().getId().equals(currentUserId)) {
+            log.warn("Access denied: User id={} attempted to access card id={} belonging to user id={}",
+                    currentUserId, card.getId(), card.getUser() != null ? card.getUser().getId() : null);
+            throw new AccessDeniedException("Access denied: You can only access your own cards.");
+        }
+    }
+
+    private void evictUserCache(Long userId) {
         Cache userCache = cacheManager.getCache("users");
-        if(userCache != null){
+        if (userCache != null) {
             userCache.evict(userId);
         }
     }

@@ -11,9 +11,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -22,6 +25,7 @@ import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 public abstract class AbstractIntegrationTest {
@@ -34,7 +38,6 @@ public abstract class AbstractIntegrationTest {
         REDIS.start();
     }
 
-    // Эти значения перекрывают ${DB_URL} и т.д. из application.yaml, поэтому .env в тестах не нужен
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -92,10 +95,23 @@ public abstract class AbstractIntegrationTest {
 
     protected long createCard(long userId, String number) throws Exception {
         String body = mockMvc.perform(post("/api/users/{userId}/cards", userId)
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(number, "IVAN PETROV")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return ((Number) JsonPath.read(body, "$.id")).longValue();
+    }
+
+    protected RequestPostProcessor userJwt(Long userId) {
+        return SecurityMockMvcRequestPostProcessors.jwt()
+                .authorities(new SimpleGrantedAuthority("ROLE_USER"))
+                .jwt(j -> j.claim("role", "USER").claim("user_id", userId));
+    }
+
+    protected RequestPostProcessor adminJwt() {
+        return SecurityMockMvcRequestPostProcessors.jwt()
+                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                .jwt(j -> j.claim("role", "ADMIN").claim("user_id", 9999L));
     }
 }

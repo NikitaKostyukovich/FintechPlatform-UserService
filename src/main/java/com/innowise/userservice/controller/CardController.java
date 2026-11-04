@@ -6,6 +6,9 @@ import com.innowise.userservice.service.CardService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +31,7 @@ public class CardController {
     }
 
     @PostMapping("/users/{userId}/cards")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CardResponseDTO> addCardToUser(
             @PathVariable Long userId,
             @RequestBody @Valid CardRequestDTO dto
@@ -36,27 +40,54 @@ public class CardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdCard);
     }
 
+    @PostMapping("/cards")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<CardResponseDTO> addCard(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid CardRequestDTO dto){
+        Long targetUserID = ((Number) jwt.getClaim("user_id")).longValue();
+        CardResponseDTO createdCard = cardService.addCardToUser(targetUserID, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdCard);
+    }
+
     @GetMapping("/users/{userId}/cards")
-    public ResponseEntity<List<CardResponseDTO>> getCardsByUserId(@PathVariable Long userId) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<CardResponseDTO>> getCardsByUserId(
+            @PathVariable Long userId) {
         return ResponseEntity.ok(cardService.getCardsByUserId(userId));
     }
 
+    @GetMapping("/cards")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<List<CardResponseDTO>> getCards(@AuthenticationPrincipal Jwt jwt){
+        Long currentUserId = ((Number) jwt.getClaim("user_id")).longValue();
+        return ResponseEntity.ok(cardService.getCardsByUserId(currentUserId));
+    }
+
     @GetMapping("/cards/{id}")
-    public ResponseEntity<CardResponseDTO> getCardById(@PathVariable Long id) {
-        return ResponseEntity.ok(cardService.getCardById(id));
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    public ResponseEntity<CardResponseDTO> getCardById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(cardService.getCardById(id, jwt));
     }
 
     @PutMapping("/cards/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<CardResponseDTO> updateCard(
             @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CardRequestDTO dto
     ) {
-        return ResponseEntity.ok(cardService.updateCard(id, dto));
+        return ResponseEntity.ok(cardService.updateCard(id, dto, jwt));
     }
-
     @DeleteMapping("/cards/{id}")
-    public ResponseEntity<Void> deleteCard(@PathVariable Long id) {
-        cardService.deleteCard(id);
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    public ResponseEntity<Void> deleteCard(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        cardService.deleteCard(id, jwt);
         return ResponseEntity.noContent().build();
     }
 }
