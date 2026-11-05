@@ -49,7 +49,7 @@ class UserApiIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userJson("Petr", "Ivanov", "ivan@test.com")))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

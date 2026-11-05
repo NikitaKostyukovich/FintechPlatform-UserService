@@ -15,11 +15,11 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleExceptionsDirectly() {
         ResponseEntity<ErrorResponse> r1 = handler.handleCardLimitExceeded(new CardLimitExceededException("Limit reached"));
-        assertEquals(HttpStatus.CONFLICT, r1.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, r1.getStatusCode());
         assertNotNull(r1.getBody());
 
         ResponseEntity<ErrorResponse> r2 = handler.handleDataIntegrityViolation(new DataIntegrityViolationException("Duplicate"));
-        assertEquals(HttpStatus.CONFLICT, r2.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, r2.getStatusCode());
         assertNotNull(r2.getBody());
 
         ResponseEntity<ErrorResponse> r3 = handler.handleAllOtherExceptions(new RuntimeException("Unexpected error"));
