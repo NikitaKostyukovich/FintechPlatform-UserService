@@ -1,0 +1,32 @@
+spring:
+  config:
+    import: "optional:file:.env[.properties]"
+  application:
+    name: JavaAdvancedProject
+  profiles:
+    active: local
+  datasource:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_SERVICE_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
+server:
+  port: 8081
+
+

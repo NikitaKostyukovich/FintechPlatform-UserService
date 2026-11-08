@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-payment-cards-table.yaml
+      author: nikita_kostyukovich
+      changes:
+        - createTable:
+            tableName: payment_cards
+            columns:
+               - column:
+                   name: id
+                   type: bigint
+                   autoIncrement: true
+                   constraints:
+                     primaryKey: true
+                     nullable: false
+               - column:
+                   name: user_id
+                   type: bigint
+                   constraints:
+                     nullable: false
+               - column:
+                   name: number
+                   type: varchar(19)
+                   constraints:
+                     nullable: false
+                     unique: true
+               - column:
+                   name: holder
+                   type: varchar(100)
+                   constraints:
+                     nullable: false
+               - column:
+                   name: expiration_date
+                   type: date
+                   constraints:
+                     nullable: false
+               - column:
+                   name: active
+                   type: boolean
+                   defaultValue: true
+                   constraints:
+                     nullable: false
+               - column:
+                   name: created_at
+                   type: timestamp
+                   constraints:
+                     nullable: false
+               - column:
+                   name: updated_at
+                   type: timestamp
+                   constraints:
+                     nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: payment_cards
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fr_cards_users
+            onDelete: CASCADE
+        - createIndex:
+            tableName: payment_cards
+            indexName: idx_cards_user_id
+            columns:
+              column:
+                name: user_id

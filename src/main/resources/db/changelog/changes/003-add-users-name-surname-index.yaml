@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-add-users-name-surname-index
+      author: nikita_kostyukovich
+      changes:
+        - createIndex:
+            tableName: users
+            indexName: idx_users_name_surname
+            columns:
+              - column:
+                  name: name
+              - column:
+                  name: surname
