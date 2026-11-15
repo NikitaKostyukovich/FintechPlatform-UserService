@@ -49,7 +49,7 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void addCard_sixthActiveCard_returns400() throws Exception {
+    void addCard_sixthActiveCard_returns409() throws Exception {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
         for (int i = 0; i < 5; i++) {
             createCard(userId, cardNumber(i));
@@ -59,8 +59,8 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
                         .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(5), "IVAN PETROV")))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").exists());
     }
 
@@ -219,6 +219,6 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
                         .with(userJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "IVAN PETROV")))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
     }
 }
