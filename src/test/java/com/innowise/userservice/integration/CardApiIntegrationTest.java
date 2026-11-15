@@ -59,8 +59,8 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
                         .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(5), "IVAN PETROV")))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").exists());
     }
 
