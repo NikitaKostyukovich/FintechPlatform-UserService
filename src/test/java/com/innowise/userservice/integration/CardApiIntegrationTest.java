@@ -49,7 +49,7 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void addCard_sixthActiveCard_returns400() throws Exception {
+    void addCard_sixthActiveCard_returns409() throws Exception {
         long userId = createUser("Ivan", "Petrov", "ivan@test.com");
         for (int i = 0; i < 5; i++) {
             createCard(userId, cardNumber(i));
