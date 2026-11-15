@@ -219,6 +219,6 @@ class CardApiIntegrationTest extends AbstractIntegrationTest {
                         .with(userJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardJson(cardNumber(1), "IVAN PETROV")))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
     }
 }
